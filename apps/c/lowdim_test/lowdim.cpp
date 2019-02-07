@@ -129,6 +129,9 @@ int main(int argc, char **argv)
 
 
   ops_dump_to_hdf5("output.h5");
+  ops_printf("PASSED");
+
   ops_exit();
+
   //Main program end 
 }

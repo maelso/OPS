@@ -163,6 +163,8 @@ int main(int argc, char **argv)
                ops_arg_dat(dat1D_Z, 1, S3D_000_STRID3D_Z, "double", OPS_READ));
 
   ops_dump_to_hdf5("output.h5");
+  ops_printf("PASSED");
+
   ops_exit();
 
 }
