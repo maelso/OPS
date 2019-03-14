@@ -22,21 +22,42 @@ void initialize_damp_kernel(float *damp, int *idx){
     if ( (idx[0] >= damp_left_initial && idx[1] >= damp_left_initial && idx[2] >= damp_left_initial) && 
          (idx[0] < damp_right_final && idx[1] < damp_right_final && idx[2] < damp_right_final)
     ){
-        if( (idx[2] >= damp_left_initial && idx[2] < damp_left_final) || (idx[2] >= damp_right_initial && idx[2] < damp_right_final) ){
+        //IDX 2
+        if(idx[2] >= damp_left_initial && idx[2] < damp_left_final){
             pivot = idx[2];
             pos = abs((border_size - pivot + 2) / (float)border_size);
             val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
             damp[OPS_ACC0(0, 0, 0)] = pos;
         }
-        else if( (idx[1] >= damp_left_initial && idx[1] < damp_left_final) || (idx[1] >= damp_right_initial && idx[1] < damp_right_final) ){
+        else if(idx[2] > damp_right_initial && idx[2] < damp_right_final){
+            pivot = idx[2] % (border_size + 1);
+            pos = abs((pivot + 2) / (float)border_size);
+            val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
+            damp[OPS_ACC0(0, 0, 0)] = pos;
+        }
+        //IDX 1
+        else if(idx[1] >= damp_left_initial && idx[1] < damp_left_final){
             pivot = idx[1];
             pos = abs((border_size - pivot + 2) / (float)border_size);
             val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
             damp[OPS_ACC0(0, 0, 0)] = pos;
         }
-        else if( (idx[0] >= damp_left_initial && idx[0] < damp_left_final) || (idx[0] >= damp_right_initial && idx[0] < damp_right_final) ){
+        else if(idx[1] > damp_right_initial && idx[1] < damp_right_final){
+            pivot = idx[1] % (border_size + 1);
+            pos = abs((pivot + 2) / (float)border_size);
+            val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
+            damp[OPS_ACC0(0, 0, 0)] = pos;
+        }
+        //IDX 0
+        else if(idx[0] >= damp_left_initial && idx[0] < damp_left_final){
             pivot = idx[0];
             pos = abs((border_size - pivot + 2) / (float)border_size);
+            val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
+            damp[OPS_ACC0(0, 0, 0)] = pos;
+        }
+        else if(idx[0] > damp_right_initial && idx[0] < damp_right_final){
+            pivot = idx[0] % (border_size + 1);
+            pos = abs((pivot + 2) / (float)border_size);
             val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
             damp[OPS_ACC0(0, 0, 0)] = pos;
         }
