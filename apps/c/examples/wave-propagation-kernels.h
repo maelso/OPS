@@ -6,7 +6,7 @@ void initialize_velocity_model_kernel(float *m)
     m[OPS_ACC0(0, 0, 0)] = 0.25;
 }
 
-void set_value_kernel(float *damp)
+void set_zero_kernel(float *damp)
 {
     damp[OPS_ACC0(0, 0, 0)] = 0.0;
 }
@@ -71,13 +71,41 @@ void initialize_damp_kernel(float *damp, int *idx)
             }
             else if (idx[dim] > damp_right_initial && idx[dim] < damp_right_final)
             {
-                pivot = idx[dim] % (border_size + 1);
+                pivot = idx[dim] - damp_right_initial - 1;
                 pos = abs((pivot + 2) / (float)border_size);
                 val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
                 damp[OPS_ACC0(0, 0, 0)] += val;
             }
         }
     }
+}
+
+void set_space_order_border_kernel(float *damp, float *damp2, int *idx)
+{
+    int so_border_left = space_order/2;
+    int so_border_right = space_order/2 + border_size*2 + X_size;
+    int x, y, z;
+    
+    if(idx[0] < so_border_left)
+        x = so_border_left;
+    else if (idx[0] >= so_border_right)
+        x = -so_border_left;
+    else
+        x = 0;
+    if(idx[1] < so_border_left)
+        y = so_border_left;
+    else if (idx[1] >= so_border_right)
+        y = -so_border_left;
+    else
+        y = 0;
+    if(idx[2] < so_border_left)
+        z = so_border_left;
+    else if (idx[2] >= so_border_right)
+        z = -so_border_left;
+    else
+        z = 0;
+
+    damp2[OPS_ACC1(0, 0, 0)] = damp[OPS_ACC0(x, y, z)];
 }
 
 #endif
