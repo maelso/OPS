@@ -4,11 +4,11 @@
 
 #define OPS_3D
 #include "ops_seq.h"
-
-int X_size = 10;
-int Y_size = 10;
-int Z_size = 10;
-int padding = 0;
+int dimensions_number = 3;
+int X_size = 20;
+int Y_size = 20;
+int Z_size = 20;
+int padding = 1;
 double dt = 0.001, start = 0, stop = 30; // time variables
 int border_size = 10;                    // Abosrbent border
 int space_order = 2;                     // Space order
@@ -57,11 +57,11 @@ int main(int argc, char *argv[])
 
     // Alocates and initialize grid
     u = (float **)malloc(3 * sizeof(float *));
-    u[0] = (float *)calloc((X_size + 2 * border_size + 2 * space_order) * (Y_size + 2 * border_size + 2 * space_order) * (Z_size + 2 * border_size + 2 * space_order), sizeof(float));
-    u[1] = (float *)calloc((X_size + 2 * border_size + 2 * space_order) * (Y_size + 2 * border_size + 2 * space_order) * (Z_size + 2 * border_size + 2 * space_order), sizeof(float));
-    u[2] = (float *)calloc((X_size + 2 * border_size + 2 * space_order) * (Y_size + 2 * border_size + 2 * space_order) * (Z_size + 2 * border_size + 2 * space_order), sizeof(float));
-    m = (float *)malloc((X_size + 2 * border_size + 2 * space_order) * (Y_size + 2 * border_size + 2 * space_order) * (Z_size + 2 * border_size + 2 * space_order) * sizeof(float));
-    damp = (float *)malloc((X_size + 2 * border_size + space_order) * (Y_size + 2 * border_size + space_order) * (Z_size + 2 * border_size + space_order) * sizeof(float));
+    u[0] = (float *)malloc((X_size + 2 * border_size + 2 * space_order + 2 * padding) * (Y_size + 2 * border_size + 2 * space_order + 2 * padding) * (Z_size + 2 * border_size + 2 * space_order + 2 * padding) * sizeof(float));
+    u[1] = (float *)malloc((X_size + 2 * border_size + 2 * space_order + 2 * padding) * (Y_size + 2 * border_size + 2 * space_order + 2 * padding) * (Z_size + 2 * border_size + 2 * space_order + 2 * padding) * sizeof(float));
+    u[2] = (float *)malloc((X_size + 2 * border_size + 2 * space_order + 2 * padding) * (Y_size + 2 * border_size + 2 * space_order + 2 * padding) * (Z_size + 2 * border_size + 2 * space_order + 2 * padding) * sizeof(float));
+    m = (float *)malloc((X_size + 2 * border_size + 2 * space_order + 2 * padding) * (Y_size + 2 * border_size + 2 * space_order + 2 * padding) * (Z_size + 2 * border_size + 2 * space_order + 2 * padding) * sizeof(float));
+    damp = (float *)malloc((X_size + 2 * border_size + space_order + 2 * padding) * (Y_size + 2 * border_size + space_order + 2 * padding) * (Z_size + 2 * border_size + space_order + 2 * padding) * sizeof(float));
     src = (float *)malloc(T_intervals * sizeof(float));
 
     // Initialize velocity model
@@ -96,9 +96,9 @@ int main(int argc, char *argv[])
     dat_ut[0] = ops_decl_dat(grid, 1, size, base, d_m, d_p, u[0], "float", "ut0");
     dat_ut[1] = ops_decl_dat(grid, 1, size, base, d_m, d_p, u[1], "float", "ut1");
     dat_ut[2] = ops_decl_dat(grid, 1, size, base, d_m, d_p, u[2], "float", "ut2");
-    dat_m = ops_decl_dat(grid, 1, size, base, d_m_0, d_p_0, m, "float", "m");
-    dat_damp = ops_decl_dat(grid, 1, damp_size, base, d_m_0, d_p_0, damp, "float", "damp");
-    dat_damp2 = ops_decl_dat(grid, 1, damp_size, base, d_m_0, d_p_0, damp, "float", "damp");
+    dat_m = ops_decl_dat(grid, 1, size, base, d_m, d_p, m, "float", "m");
+    dat_damp = ops_decl_dat(grid, 1, damp_size, base, d_m, d_p, damp, "float", "damp");
+    dat_damp2 = ops_decl_dat(grid, 1, damp_size, base, d_m, d_p, damp, "float", "damp");
 
     int s3d_000[] = {0, 0, 0};
     int s3d_1pt[] = {-1, -1, -1};
@@ -129,21 +129,21 @@ int main(int argc, char *argv[])
     ops_stencil S3D_000 = ops_decl_stencil(3, 1, s3d_000, "0,0,0");
     ops_stencil S3D_1PT = ops_decl_stencil(3, 1, s3d_1pt, "-1,-1,-1");
     ops_stencil S3D_7PTS = ops_decl_stencil(3, 7, s3d_7pts, "7pts");
-    ops_stencil S3D_15PTS = ops_decl_stencil(3, 8, s3d_15pts, "8pts");
+    ops_stencil S3D_15PTS = ops_decl_stencil(3, 15, s3d_15pts, "15pts");
     
     int max_index = X_size + 2 * border_size + 2 * space_order + 2 * padding;
     int u_dim_size = X_size + 2 * border_size + 2 * padding;
 
     int shift = space_order;
-    int whole_range[] = {space_order, X_size + 2 * border_size, space_order, Y_size + 2 * border_size, space_order, Z_size + 2 * border_size};
+    int whole_range[] = {space_order, X_size + 2 * border_size + 2 * padding, space_order, Y_size + 2 * border_size + 2 * padding, space_order, Z_size + 2 * border_size + 2 * padding};
     int velocity_model_range[] = {
-        0, X_size + 2 * border_size,
-        0, X_size + 2 * border_size,
-        0, X_size + 2 * border_size};
+        0, X_size + 2 * border_size + 2 * padding,
+        0, X_size + 2 * border_size + 2 * padding,
+        0, X_size + 2 * border_size + 2 * padding};
     int damp_range[] = {
-        0, X_size + 2 * border_size + 1 + 1,
-        0, Y_size + 2 * border_size + 1 + 1,
-        0, Z_size + 2 * border_size + 1 + 1
+        0, X_size + 2 * border_size + 1 + 1 + 2 * padding,
+        0, Y_size + 2 * border_size + 1 + 1 + 2 * padding,
+        0, Z_size + 2 * border_size + 1 + 1 + 2 * padding
         };
     ops_printf("Starts time propagation.\n");
 
@@ -158,7 +158,15 @@ int main(int argc, char *argv[])
     // Initialize velocity model
     ops_par_loop(initialize_velocity_model_kernel, "initialize_velocity_model_kernel", grid, 3, velocity_model_range,
                     ops_arg_dat(dat_m, 1, S3D_000, "float", OPS_WRITE));
-    // ops_print_dat_to_txtfile(dat_m, "model.txt");
+    ops_print_dat_to_txtfile(dat_m, "model.txt");
+
+    //Initialize u1, u2 and u3
+    ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
+                    ops_arg_dat(dat_ut[0], 1, S3D_000, "float", OPS_WRITE));
+    ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
+                    ops_arg_dat(dat_ut[1], 1, S3D_000, "float", OPS_WRITE));
+    ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
+                    ops_arg_dat(dat_ut[2], 1, S3D_000, "float", OPS_WRITE));
 
     // Initialize Initialize Damp
     ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
@@ -170,7 +178,7 @@ int main(int argc, char *argv[])
                 ops_arg_dat(dat_damp, 1, S3D_000, "float", OPS_WRITE),
                 ops_arg_dat(dat_damp2, 1, S3D_15PTS, "float", OPS_READ),
                 ops_arg_idx());
-    ops_print_dat_to_txtfile(dat_damp, "damp_par.txt");
+    // ops_print_dat_to_txtfile(dat_damp, "damp_par.txt");
     // damp = (float *)ops_dat_get_raw_pointer(dat_damp, 0, S3D_000, strides);
     // print_vector(damp, X_size + 2 * border_size + 1 + 1, Y_size + 2 * border_size + 1 + 1, Z_size + 2 * border_size + 1 + 1);
 
@@ -421,7 +429,7 @@ void initialize_source(float *src, int total_time)
 {
     float f0 = 0.1; // Peak frequency
 
-    ops_printf("Total time: %d\n", total_time);
+    // ops_printf("Total time: %d\n", total_time);
     for (int t = 0; t < total_time; t++)
     {
         float r = (M_PI * f0 * (dt * t - 1. / f0));
