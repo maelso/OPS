@@ -197,7 +197,7 @@ void ops_par_loop_calc_dt_kernel_print_execute(ops_kernel_descriptor *desc) {
 
   dim3 grid((x_size - 1) / OPS_block_size_x + 1,
             (y_size - 1) / OPS_block_size_y + 1, 1);
-  dim3 tblock(OPS_block_size_x, OPS_block_size_y, 1);
+  dim3 tblock(OPS_block_size_x, OPS_block_size_y, OPS_block_size_z);
 
   int nblocks = ((x_size - 1) / OPS_block_size_x + 1) *
                 ((y_size - 1) / OPS_block_size_y + 1);
@@ -276,17 +276,18 @@ void ops_par_loop_calc_dt_kernel_print_execute(ops_kernel_descriptor *desc) {
   }
 
   int nshared = 0;
-  int nthread = OPS_block_size_x * OPS_block_size_y;
+  int nthread = OPS_block_size_x * OPS_block_size_y * OPS_block_size_z;
 
   nshared = MAX(nshared, sizeof(double) * 12);
 
   nshared = MAX(nshared * nthread, reduct_size * nthread);
 
   // call kernel wrapper function, passing in pointers to data
-  ops_calc_dt_kernel_print<<<grid, tblock, nshared>>>(
-      (double *)p_a[0], (double *)p_a[1], (double *)p_a[2], (double *)p_a[3],
-      (double *)p_a[4], (double *)p_a[5], (double *)arg6.data_d, x_size,
-      y_size);
+  if (x_size > 0 && y_size > 0)
+    ops_calc_dt_kernel_print<<<grid, tblock, nshared>>>(
+        (double *)p_a[0], (double *)p_a[1], (double *)p_a[2], (double *)p_a[3],
+        (double *)p_a[4], (double *)p_a[5], (double *)arg6.data_d, x_size,
+        y_size);
 
   cutilSafeCall(cudaGetLastError());
 

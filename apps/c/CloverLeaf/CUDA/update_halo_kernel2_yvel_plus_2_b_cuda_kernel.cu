@@ -130,7 +130,7 @@ void ops_par_loop_update_halo_kernel2_yvel_plus_2_b_execute(
 
   dim3 grid((x_size - 1) / OPS_block_size_x + 1,
             (y_size - 1) / OPS_block_size_y + 1, 1);
-  dim3 tblock(OPS_block_size_x, OPS_block_size_y, 1);
+  dim3 tblock(OPS_block_size_x, OPS_block_size_y, OPS_block_size_z);
 
   int consts_bytes = 0;
 
@@ -174,8 +174,9 @@ void ops_par_loop_update_halo_kernel2_yvel_plus_2_b_execute(
   }
 
   // call kernel wrapper function, passing in pointers to data
-  ops_update_halo_kernel2_yvel_plus_2_b<<<grid, tblock>>>(
-      (double *)p_a[0], (double *)p_a[1], (int *)arg2.data_d, x_size, y_size);
+  if (x_size > 0 && y_size > 0)
+    ops_update_halo_kernel2_yvel_plus_2_b<<<grid, tblock>>>(
+        (double *)p_a[0], (double *)p_a[1], (int *)arg2.data_d, x_size, y_size);
 
   cutilSafeCall(cudaGetLastError());
 

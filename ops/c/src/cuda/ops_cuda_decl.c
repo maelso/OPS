@@ -46,11 +46,11 @@ char *ops_halo_buffer = NULL;
 char *ops_halo_buffer_d = NULL;
 int ops_halo_buffer_size = 0;
 
-void ops_init(int argc, char **argv, int diags) {
+void ops_init(const int argc, const char **argv, const int diags) {
   ops_init_core(argc, argv, diags);
 
-  if ((OPS_block_size_x * OPS_block_size_y) > 1024) {
-    printf("Error: OPS_block_size_x*OPS_block_size_y should be less than 1024 "
+  if ((OPS_block_size_x * OPS_block_size_y * OPS_block_size_z) > 1024) {
+    printf("Error: OPS_block_size_x*OPS_block_size_y*OPS_block_size_z should be less than 1024 "
            "-- error OPS_block_size_*\n");
     exit(-1);
   }
@@ -105,7 +105,8 @@ ops_dat ops_decl_dat_char(ops_block block, int size, int *dat_size, int *base,
                              // ops_decl_dat_hdf5()
   } else {
     // Allocate memory immediately
-    dat->data = (char *)calloc(bytes, 1); // initialize data bits to 0
+    dat->data = (char *)ops_calloc(bytes, 1); // initialize data bits to 0
+    // dat->data = (char *)ops_malloc(bytes); // initialize data bits to 0
     dat->user_managed = 0;
     dat->mem = bytes;
   }
@@ -122,6 +123,8 @@ ops_dat ops_decl_dat_char(ops_block block, int size, int *dat_size, int *base,
 
   ops_cpHostToDevice ( ( void ** ) &( dat->data_d ),
     ( void ** ) &( dat->data ), bytes );
+
+  dat->x_pad = 0; // no padding for data alignment
 
   return dat;
 }
@@ -164,6 +167,12 @@ void ops_print_dat_to_txtfile(ops_dat dat, const char *file_name) {
   // need to get data from GPU
   ops_cuda_get_data(dat);
   ops_print_dat_to_txtfile_core(dat, file_name);
+}
+
+void ops_NaNcheck(ops_dat dat) {
+  // need to get data from GPU
+  ops_cuda_get_data(dat);
+  ops_NaNcheck_core(dat, "");
 }
 
 void ops_partition(const char *routine) {
@@ -296,3 +305,4 @@ void ops_halo_transfer(ops_halo_group group) {
 
 int getOPS_block_size_x() { return OPS_block_size_x; }
 int getOPS_block_size_y() { return OPS_block_size_y; }
+int getOPS_block_size_z() { return OPS_block_size_z; }

@@ -46,7 +46,6 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
-#include <device_functions.h>
 #include <device_launch_parameters.h>
 
 #include <ops_lib_core.h>
@@ -68,6 +67,9 @@ extern void __syncthreads();
 
 extern int OPS_block_size_x;
 extern int OPS_block_size_y;
+extern int OPS_block_size_z;
+
+extern int ops_device_initialised_externally;
 
 /*
 * personal stripped-down version of cutil_inline.h
@@ -76,7 +78,7 @@ extern int OPS_block_size_y;
 #define cutilSafeCall(err) __cudaSafeCall(err, __FILE__, __LINE__)
 #define cutilCheckMsg(msg) __cutilCheckMsg(msg, __FILE__, __LINE__)
 
-void cutilDeviceInit(int argc, char **argv);
+void cutilDeviceInit(const int argc, const char **argv);
 void __cudaSafeCall(cudaError_t err, const char *file, const int line);
 void ops_cuda_get_data(ops_dat dat);
 void reallocConstArrays(int consts_bytes);
@@ -87,6 +89,8 @@ void mvReductArraysToHost(int reduct_bytes);
 void ops_cuda_exit();
 void ops_upload_dat(ops_dat dat);
 void ops_download_dat(ops_dat dat);
+
+void ops_set_dirtybit_device_dat(ops_dat dat);
 
 void ops_halo_copy_dh(const char *src, char *dest, int size);
 void ops_halo_copy_hd(const char *src, char *dest, int size);

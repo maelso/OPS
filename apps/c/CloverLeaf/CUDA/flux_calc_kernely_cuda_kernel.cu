@@ -145,7 +145,7 @@ void ops_par_loop_flux_calc_kernely_execute(ops_kernel_descriptor *desc) {
 
   dim3 grid((x_size - 1) / OPS_block_size_x + 1,
             (y_size - 1) / OPS_block_size_y + 1, 1);
-  dim3 tblock(OPS_block_size_x, OPS_block_size_y, 1);
+  dim3 tblock(OPS_block_size_x, OPS_block_size_y, OPS_block_size_z);
 
   int dat0 = (OPS_soa ? args[0].dat->type_size : args[0].dat->elem_size);
   int dat1 = (OPS_soa ? args[1].dat->type_size : args[1].dat->elem_size);
@@ -190,9 +190,10 @@ void ops_par_loop_flux_calc_kernely_execute(ops_kernel_descriptor *desc) {
   }
 
   // call kernel wrapper function, passing in pointers to data
-  ops_flux_calc_kernely<<<grid, tblock>>>((double *)p_a[0], (double *)p_a[1],
-                                          (double *)p_a[2], (double *)p_a[3],
-                                          x_size, y_size);
+  if (x_size > 0 && y_size > 0)
+    ops_flux_calc_kernely<<<grid, tblock>>>((double *)p_a[0], (double *)p_a[1],
+                                            (double *)p_a[2], (double *)p_a[3],
+                                            x_size, y_size);
 
   cutilSafeCall(cudaGetLastError());
 
