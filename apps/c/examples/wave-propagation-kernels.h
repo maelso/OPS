@@ -26,20 +26,6 @@ void wave_propagation_kernel(const float *dampx0, const float *mx0, float *ut10,
                                      (dt * dt * dt) * ut00[OPS_ACC3(0, 0, 1)] / r0) +
                               0.5 * (dt * dt) * dampx0[OPS_ACC0(-1, -1, -1)] * ut20[OPS_ACC4(0, 0, 0)] / r0 -
                               6.0 * dt * dt * dt * ut00[OPS_ACC3(0, 0, 0)] / r0;
-
-    // if (ut10[OPS_ACC2(0, 0, 0)] != 0)
-    // {
-    //        printf("Injecting u[%d][%d][%d]=%f ", idx[2], idx[1], idx[0], ut10[OPS_ACC2(0, 0, 0)]);
-    //        printf("r0=%f | dt=%f | m=%f | damp=%f ", r0, dt, mx0[OPS_ACC1(0, 0, 0)], dampx0[OPS_ACC0(-1, -1, -1)]);
-    //        printf("\t ut2=%f | ut0=%f %f %f %f %f %f %f\n", ut20[OPS_ACC4(0, 0, 0)],
-    //                                                         ut00[OPS_ACC3(0, 0, 0)],
-    //                                                         ut00[OPS_ACC3(0, 0, -1)],
-    //                                                         ut00[OPS_ACC3(0, -1, 0)],
-    //                                                         ut00[OPS_ACC3(-1, 0, 0)],
-    //                                                         ut00[OPS_ACC3(1, 0, 0)],
-    //                                                         ut00[OPS_ACC3(0, 1, 0)],
-    //                                                         ut00[OPS_ACC3(0, 0, 1)]);
-    // }
 }
 
 void initialize_damp_kernel(float *damp, int *idx)
@@ -82,23 +68,23 @@ void initialize_damp_kernel(float *damp, int *idx)
 
 void set_space_order_border_kernel(float *damp, float *damp2, int *idx)
 {
-    int so_border_left = space_order/2;
-    int so_border_right = space_order/2 + border_size*2 + X_size;
+    int so_border_left = space_order / 2;
+    int so_border_right = space_order / 2 + border_size * 2 + X_size;
     int x, y, z;
-    
-    if(idx[0] < so_border_left)
+
+    if (idx[0] < so_border_left)
         x = so_border_left;
     else if (idx[0] >= so_border_right)
         x = -so_border_left;
     else
         x = 0;
-    if(idx[1] < so_border_left)
+    if (idx[1] < so_border_left)
         y = so_border_left;
     else if (idx[1] >= so_border_right)
         y = -so_border_left;
     else
         y = 0;
-    if(idx[2] < so_border_left)
+    if (idx[2] < so_border_left)
         z = so_border_left;
     else if (idx[2] >= so_border_right)
         z = -so_border_left;
@@ -106,6 +92,67 @@ void set_space_order_border_kernel(float *damp, float *damp2, int *idx)
         z = 0;
 
     damp2[OPS_ACC1(0, 0, 0)] = damp[OPS_ACC0(x, y, z)];
+}
+
+void source_injection_kernel(float *u, const float *m, const float *src_value, const int *idx)
+{
+    if (idx[2] == ii_src[0] + 2 && idx[1] == ii_src[1] + 2 && idx[0] == ii_src[2] + 2)
+    {
+        float r7 = 2.2801e-2F *
+                   (-1.0F * p[0] * p[1] * p[2] + 1.0F * p[0] * p[1] + 1.0F * p[0] * p[2] - 1.0F * p[0] +
+                    1.0F * p[1] * p[2] - 1.0F * p[1] - 1.0F * p[2] + 1) *
+                   src_value[0] / m[OPS_ACC1(0, 0, 0)];
+        // printf("u[%d][%d][%d]=%f\n", idx[0], idx[1], idx[2], r7);
+        u[OPS_ACC0(0, 0, 0)] += r7;
+    }
+    else if (idx[2] == ii_src[0] + 2 && idx[1] == ii_src[1] + 2 && idx[0] == ii_src[3] + 2)
+    {
+        float r11 = 2.2801e-2F * (1.0F * p[0] * p[1] * p[2] - 1.0F * p[0] * p[2] - 1.0F * p[1] * p[2] + 1.0F * p[2]) *
+                    src_value[0] / m[OPS_ACC1(0, 0, 0)];
+        // printf("u[%d][%d][%d]=%f\n", idx[0], idx[1], idx[2], r11);
+        u[OPS_ACC0(0, 0, 0)] += r11;
+    }
+    else if (idx[2] == ii_src[0] + 2 && idx[1] == ii_src[4] + 2 && idx[0] == ii_src[2] + 2)
+    {
+        float r15 = 2.2801e-2F * (1.0F * p[0] * p[1] * p[2] - 1.0F * p[0] * p[1] - 1.0F * p[1] * p[2] + 1.0F * p[1]) *
+                    src_value[0] / m[OPS_ACC1(0, 0, 0)];
+        // printf("u[%d][%d][%d]=%f\n", idx[0], idx[1], idx[2], r15);
+        u[OPS_ACC0(0, 0, 0)] += r15;
+    }
+    else if (idx[2] == ii_src[0] + 2 && idx[1] == ii_src[4] + 2 && idx[0] == ii_src[3] + 2)
+    {
+        float r19 =
+            2.2801e-2F * (-1.0F * p[0] * p[1] * p[2] + 1.0F * p[1] * p[2]) * src_value[0] / m[OPS_ACC1(0, 0, 0)];
+        // printf("u[%d][%d][%d]=%f\n", idx[0], idx[1], idx[2], r19);
+        u[OPS_ACC0(0, 0, 0)] += r19;
+    }
+    else if (idx[2] == ii_src[5] + 2 && idx[1] == ii_src[1] + 2 && idx[0] == ii_src[2] + 2)
+    {
+        float r23 = 2.2801e-2F * (1.0F * p[0] * p[1] * p[2] - 1.0F * p[0] * p[1] - 1.0F * p[0] * p[2] + 1.0F * p[0]) *
+                    src_value[0] / m[OPS_ACC1(0, 0, 0)];
+        // printf("u[%d][%d][%d]=%f\n", idx[0], idx[1], idx[2], r23);
+        u[OPS_ACC0(0, 0, 0)] += r23;
+    }
+    else if (idx[2] == ii_src[5] + 2 && idx[1] == ii_src[1] + 2 && idx[0] == ii_src[3] + 2)
+    {
+        float r27 =
+            2.2801e-2F * (-1.0F * p[0] * p[1] * p[2] + 1.0F * p[0] * p[2]) * src_value[0] / m[OPS_ACC1(0, 0, 0)];
+        // printf("u[%d][%d][%d]=%f\n", idx[0], idx[1], idx[2], r27);
+        u[OPS_ACC0(0, 0, 0)] += r27;
+    }
+    else if (idx[2] == ii_src[5] + 2 && idx[1] == ii_src[4] + 2 && idx[0] == ii_src[2] + 2)
+    {
+        float r31 =
+            2.2801e-2F * (-1.0F * p[0] * p[1] * p[2] + 1.0F * p[0] * p[1]) * src_value[0] / m[OPS_ACC1(0, 0, 0)];
+        // printf("u[%d][%d][%d]=%f\n", idx[0], idx[1], idx[2], r31);
+        u[OPS_ACC0(0, 0, 0)] += r31;
+    }
+    else if (idx[2] == ii_src[5] + 2 && idx[1] == ii_src[4] + 2 && idx[0] == ii_src[3] + 2)
+    {
+        float r35 = 2.2801e-2F * p[0] * p[1] * p[2] * src_value[0] / m[OPS_ACC1(0, 0, 0)];
+        // printf("u[%d][%d][%d]=%f\n", idx[0], idx[1], idx[2], r35);
+        u[OPS_ACC0(0, 0, 0)] += r35;
+    }
 }
 
 #endif

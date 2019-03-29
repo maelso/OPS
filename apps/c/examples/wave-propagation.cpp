@@ -12,6 +12,8 @@ int padding = 1;
 double dt = 0.001, start = 0, stop = 30; // time variables
 int border_size = 10;                    // Abosrbent border
 int space_order = 2;                     // Space order
+int ii_src[6], u_dim_size;
+float p[3];
 
 #include "wave-propagation-kernels.h"
 
@@ -19,10 +21,11 @@ void initialize_velocity_model(float *m, int x_size, int y_size, int z_size);
 void initialize_damp(float *damp, int x_size, int y_size, int z_size);
 void initialize_source(float *src, int T_intervals);
 void print_vector(float *vec, int x_limit, int y_limit, int z_limit);
+void calculate_source_interpolation_position(float* src_coords, float* p, int* ii_src);
 
 int main(int argc, char *argv[])
 {
-    int t = 1; // no devito, ele comeca no intervalo 1.
+    int t;
     int size[3];
     int damp_size[3];
     int base[] = {0, 0, 0};
@@ -47,21 +50,13 @@ int main(int argc, char *argv[])
 
     ops_init(argc, NULL, 1);
 
-    // Declare global constant
-    ops_decl_const("X_size", 1, "int", &X_size);
-    ops_decl_const("Y_size", 1, "int", &Y_size);
-    ops_decl_const("Z_size", 1, "int", &Z_size);
-    ops_decl_const("border_size", 1, "int", &border_size);
-    ops_decl_const("dt", 1, "double", &dt);
-    ops_decl_const("space_order", 1, "int", &space_order);
-
     // Alocates and initialize grid
     u = (float **)malloc(3 * sizeof(float *));
-    u[0] = (float *)malloc((X_size + 2 * border_size + 2 * space_order + 2 * padding) * (Y_size + 2 * border_size + 2 * space_order + 2 * padding) * (Z_size + 2 * border_size + 2 * space_order + 2 * padding) * sizeof(float));
-    u[1] = (float *)malloc((X_size + 2 * border_size + 2 * space_order + 2 * padding) * (Y_size + 2 * border_size + 2 * space_order + 2 * padding) * (Z_size + 2 * border_size + 2 * space_order + 2 * padding) * sizeof(float));
-    u[2] = (float *)malloc((X_size + 2 * border_size + 2 * space_order + 2 * padding) * (Y_size + 2 * border_size + 2 * space_order + 2 * padding) * (Z_size + 2 * border_size + 2 * space_order + 2 * padding) * sizeof(float));
-    m = (float *)malloc((X_size + 2 * border_size + 2 * space_order + 2 * padding) * (Y_size + 2 * border_size + 2 * space_order + 2 * padding) * (Z_size + 2 * border_size + 2 * space_order + 2 * padding) * sizeof(float));
-    damp = (float *)malloc((X_size + 2 * border_size + space_order + 2 * padding) * (Y_size + 2 * border_size + space_order + 2 * padding) * (Z_size + 2 * border_size + space_order + 2 * padding) * sizeof(float));
+    u[0] = (float *)malloc((X_size + 2 * border_size + 2 * space_order) * (Y_size + 2 * border_size + 2 * space_order) * (Z_size + 2 * border_size + 2 * space_order) * sizeof(float));
+    u[1] = (float *)malloc((X_size + 2 * border_size + 2 * space_order) * (Y_size + 2 * border_size + 2 * space_order) * (Z_size + 2 * border_size + 2 * space_order) * sizeof(float));
+    u[2] = (float *)malloc((X_size + 2 * border_size + 2 * space_order) * (Y_size + 2 * border_size + 2 * space_order) * (Z_size + 2 * border_size + 2 * space_order) * sizeof(float));
+    m = (float *)malloc((X_size + 2 * border_size + 2 * space_order) * (Y_size + 2 * border_size + 2 * space_order) * (Z_size + 2 * border_size + 2 * space_order) * sizeof(float));
+    damp = (float *)malloc((X_size + 2 * border_size + space_order) * (Y_size + 2 * border_size + space_order) * (Z_size + 2 * border_size + space_order) * sizeof(float));
     src = (float *)malloc(T_intervals * sizeof(float));
 
     // Initialize velocity model
@@ -75,11 +70,27 @@ int main(int argc, char *argv[])
     // Initialize source
     initialize_source(src, T_intervals);
     // print_vector(src, T_intervals, 0, 0);
+    
+    // As we have only one source, this is simpler. For multiple sources, this has to be changed later.
+    calculate_source_interpolation_position(src_coords, p, ii_src);
+    // printf("ii_src: %d %d %d %d %d %d\n", ii_src[0], ii_src[1], ii_src[2], ii_src[3], ii_src[4], ii_src[5]);
+    
 
     // Initialize source position
     src_coords[0] = (float)(X_size - 1) / (float)2;
     src_coords[1] = (float)(Y_size - 1) / (float)2;
     src_coords[2] = (float)1.;
+
+    // Declare global constant
+    ops_decl_const("X_size", 1, "int", &X_size);
+    ops_decl_const("Y_size", 1, "int", &Y_size);
+    ops_decl_const("Z_size", 1, "int", &Z_size);
+    ops_decl_const("border_size", 1, "int", &border_size);
+    ops_decl_const("dt", 1, "double", &dt);
+    ops_decl_const("space_order", 1, "int", &space_order);
+    ops_decl_const("u_dim_size", 1, "int", &u_dim_size);
+    ops_decl_const("ii_src", 6, "int", ii_src);
+    ops_decl_const("p", 3, "float", p);
 
     ops_printf("Src coordinates:%f %f %f\n", src_coords[0], src_coords[1], src_coords[2]);
 
@@ -131,21 +142,30 @@ int main(int argc, char *argv[])
     ops_stencil S3D_7PTS = ops_decl_stencil(3, 7, s3d_7pts, "7pts");
     ops_stencil S3D_15PTS = ops_decl_stencil(3, 15, s3d_15pts, "15pts");
     
-    int max_index = X_size + 2 * border_size + 2 * space_order + 2 * padding;
-    int u_dim_size = X_size + 2 * border_size + 2 * padding;
+    int max_index = X_size + 2 * border_size + 2 * space_order;
+    int u_dim_size = X_size + 2 * border_size;
 
     int shift = space_order;
-    int whole_range[] = {space_order, X_size + 2 * border_size + 2 * padding, space_order, Y_size + 2 * border_size + 2 * padding, space_order, Z_size + 2 * border_size + 2 * padding};
+    int whole_range[] = {space_order, X_size + 2 * border_size, space_order, Y_size + 2 * border_size, space_order, Z_size + 2 * border_size};
     int velocity_model_range[] = {
-        0, X_size + 2 * border_size + 2 * padding,
-        0, X_size + 2 * border_size + 2 * padding,
-        0, X_size + 2 * border_size + 2 * padding};
+        0, X_size + 2 * border_size,
+        0, X_size + 2 * border_size,
+        0, X_size + 2 * border_size};
     int damp_range[] = {
-        0, X_size + 2 * border_size + 1 + 1 + 2 * padding,
-        0, Y_size + 2 * border_size + 1 + 1 + 2 * padding,
-        0, Z_size + 2 * border_size + 1 + 1 + 2 * padding
+        0, X_size + 2 * border_size + 1 + 1,
+        0, Y_size + 2 * border_size + 1 + 1,
+        0, Z_size + 2 * border_size + 1 + 1
         };
-    ops_printf("Starts time propagation.\n");
+    // Define range of injection kernel. That's the interpolation result.
+    int injection_range[] = {
+        ii_src[2] + 2,
+        ii_src[3] + 2 + 1,
+        ii_src[1] + 2,
+        ii_src[4] + 2 + 1,
+        ii_src[0] + 2,
+        ii_src[5] + 2 + 1
+    };
+    // ops_printf("Starts time propagation.\n");
 
     int disp[3], sizes[3], strides[3];
 
@@ -183,7 +203,7 @@ int main(int argc, char *argv[])
     // print_vector(damp, X_size + 2 * border_size + 1 + 1, Y_size + 2 * border_size + 1 + 1, Z_size + 2 * border_size + 1 + 1);
 
     ops_printf("\n***********************************************************\n");
-    do
+    for(t = 1; t < T_intervals; t++)
     {
         // ops_printf("%d\n", t);
         ops_par_loop(wave_propagation_kernel, "wave_propagation_kernel", grid, 3, whole_range,
@@ -194,134 +214,12 @@ int main(int argc, char *argv[])
                      ops_arg_dat(dat_ut[(t + 2) % 3], 1, S3D_000, "float", OPS_READ),  // t2
                      ops_arg_idx());
 
-        ops_dat_get_extents(dat_ut[(t + 1) % 3], 0, disp, sizes);
-        u[(t + 1) % 3] = (float *)ops_dat_get_raw_pointer(dat_ut[(t + 1) % 3], 0, S3D_000, strides);
-
-        // ops_printf("disp=(%d,%d,%d)\n", disp[0], disp[1], disp[2]);
-        // ops_printf("size=(%d,%d,%d)\n", sizes[0], sizes[1], sizes[2]);
-        // ops_printf("strides=(%d,%d,%d)\n", strides[0], strides[1], strides[2]);
-
-        // source injection interpolation
-        float r1 = (int)(floor(-1.0F * -border_size + 1.0F * src_coords[0]));
-        int ii_src_0 = r1;
-        float r2 = (int)(floor(-1.0F * -border_size + 1.0F * src_coords[1]));
-        int ii_src_1 = r2;
-        float r3 = (int)(floor(-1.0F * -border_size + 1.0F * src_coords[2]));
-        int ii_src_2 = r3;
-        int ii_src_3 = r3 + 1;
-        int ii_src_4 = r2 + 1;
-        int ii_src_5 = r1 + 1;
-        float px = (float)(border_size - 1.0F * r1 + src_coords[0]);
-        float py = (float)(border_size - 1.0F * r2 + src_coords[1]);
-        float pz = (float)(border_size - 1.0F * r3 + src_coords[2]);
-
-
-        // ops_printf("src=%f\n", src[t]);
-        // ops_printf("r1=%f r2=%f r3=%f\n", r1, r2, r3);
-        if (ii_src_0 >= -1 && ii_src_1 >= -1 && ii_src_2 >= -1 && ii_src_0 <= max_index && ii_src_1 <= max_index && ii_src_2 <= max_index)
-        {
-            int r4 = ii_src_0 + 2;
-            int r5 = ii_src_1 + 2;
-            int r6 = ii_src_2 + 2;
-            float r7 = 2.2801e-2F * (-1.0F * px * py * pz + 1.0F * px * py + 1.0F * px * pz - 1.0F * px + 1.0F * py * pz - 1.0F * py - 1.0F * pz + 1) * src[t] / m[r4 * max_index * max_index + r5 * max_index + r6];
-            u[((t + 1) % 3)][r4 * u_dim_size * u_dim_size +
-                             r5 * u_dim_size +
-                             r6] += r7;
-            // ops_printf("u[%d][%d][%d]=%f | m=%f | src[%d]=%f\n", r4, r5, r6, r7, m[r4 * max_index * max_index + r5 * max_index + r6], t, src[t]);
-        }
-        if (ii_src_0 >= -1 && ii_src_1 >= -1 && ii_src_3 >= -1 && ii_src_0 <= max_index && ii_src_1 <= max_index && ii_src_3 <= max_index)
-        {
-            int r8 = ii_src_0 + 2;
-            int r9 = ii_src_1 + 2;
-            int r10 = ii_src_3 + 2;
-            float r11 = 2.2801e-2F * (1.0F * px * py * pz - 1.0F * px * pz - 1.0F * py * pz + 1.0F * pz) * src[t] / m[r8 * max_index * max_index + r9 * max_index + r10];
-            u[(t + 1) % 3][r8 * u_dim_size * u_dim_size +
-                           r9 * u_dim_size +
-                           r10] += r11;
-            // ops_printf("u[%d][%d][%d]=%f | m=%f\n", r8, r9, r10, r11, m[r8 * max_index * max_index + r9 * max_index + r10]);
-        }
-
-        if (ii_src_0 >= -1 && ii_src_2 >= -1 && ii_src_4 >= -1 && ii_src_0 <= max_index && ii_src_2 <= max_index && ii_src_4 <= max_index)
-        {
-            int r12 = ii_src_0 + 2;
-            int r13 = ii_src_4 + 2;
-            int r14 = ii_src_2 + 2;
-            float r15 = 2.2801e-2F * (1.0F * px * py * pz - 1.0F * px * py - 1.0F * py * pz + 1.0F * py) * src[t] / m[r12 * max_index * max_index + r13 * max_index + r14];
-            u[(t + 1) % 3][r12 * u_dim_size * u_dim_size +
-                           r13 * u_dim_size +
-                           r14] += r15;
-            // ops_printf("u[%d][%d][%d]=%f | m=%f\n", r12, r13, r14, r15, m[r12 * max_index * max_index + r13 * max_index + r14]);
-        }
-
-        if (ii_src_0 >= -1 && ii_src_3 >= -1 && ii_src_4 >= -1 && ii_src_0 <= max_index && ii_src_3 <= max_index && ii_src_4 <= max_index)
-        {
-            int r16 = ii_src_0 + 2;
-            int r17 = ii_src_4 + 2;
-            int r18 = ii_src_3 + 2;
-            float r19 = 2.2801e-2F * (-1.0F * px * py * pz + 1.0F * py * pz) * src[t] / m[r16 * max_index * max_index + r17 * max_index + r18];
-            u[(t + 1) % 3][r16 * u_dim_size * u_dim_size +
-                           r17 * u_dim_size +
-                           r18] += r19;
-            // ops_printf("u[%d][%d][%d]=%f | m=%f\n", r16, r17, r18, r19, m[r16 * max_index * max_index + r17 * max_index + r18]);
-        }
-
-        if (ii_src_1 >= -1 && ii_src_2 >= -1 && ii_src_5 >= -1 && ii_src_1 <= max_index && ii_src_2 <= max_index && ii_src_5 <= max_index)
-        {
-            int r20 = ii_src_5 + 2;
-            int r21 = ii_src_1 + 2;
-            int r22 = ii_src_2 + 2;
-            float r23 = 2.2801e-2F * (1.0F * px * py * pz - 1.0F * px * py - 1.0F * px * pz + 1.0F * px) * src[t] / m[r20 * max_index * max_index + r21 * max_index + r22];
-            u[(t + 1) % 3][r20 * u_dim_size * u_dim_size +
-                           r21 * u_dim_size +
-                           r22] += r23;
-            // ops_printf("u[%d][%d][%d]=%f | m=%f\n", r20, r21, r22, r23, m[r20 * max_index * max_index + r21 * max_index + r22]);
-        }
-
-        if (ii_src_1 >= -1 && ii_src_3 >= -1 && ii_src_5 >= -1 && ii_src_1 <= max_index && ii_src_3 <= max_index && ii_src_5 <= max_index)
-        {
-            int r24 = ii_src_5 + 2;
-            int r25 = ii_src_1 + 2;
-            int r26 = ii_src_3 + 2;
-            float r27 = 2.2801e-2F * (-1.0F * px * py * pz + 1.0F * px * pz) * src[t] / m[r24 * max_index * max_index + r25 * max_index + r26];
-            u[(t + 1) % 3][r24 * u_dim_size * u_dim_size +
-                           r25 * u_dim_size +
-                           r26] += r27;
-            // ops_printf("u[%d][%d][%d]=%f | m=%f\n", r24, r25, r26, r27, m[r24 * max_index * max_index + r25 * max_index + r26]);
-        }
-
-        if (ii_src_2 >= -1 && ii_src_4 >= -1 && ii_src_5 >= -1 && ii_src_2 <= max_index && ii_src_4 <= max_index && ii_src_5 <= max_index)
-        {
-            int r28 = ii_src_5 + 2;
-            int r29 = ii_src_4 + 2;
-            int r30 = ii_src_2 + 2;
-            float r31 = 2.2801e-2F * (-1.0F * px * py * pz + 1.0F * px * py) * src[t] / m[r28 * max_index * max_index + r29 * max_index + r30];
-            u[(t + 1) % 3][r28 * u_dim_size * u_dim_size +
-                           r29 * u_dim_size +
-                           r30] += r31;
-            // ops_printf("u[%d][%d][%d]=%f | m=%f\n", r28, r29, r30, r31, m[r28 * max_index * max_index + r29 * max_index + r30]);
-        }
-
-        if (ii_src_3 >= -1 && ii_src_4 >= -1 && ii_src_5 >= -1 && ii_src_3 <= max_index && ii_src_4 <= max_index && ii_src_5 <= max_index)
-        {
-            int r32 = ii_src_5 + 2;
-            int r33 = ii_src_4 + 2;
-            int r34 = ii_src_3 + 2;
-            float r35 = 2.2801e-2F * px * py * pz * src[t] / m[r32 * max_index * max_index + r33 * max_index + r34];
-            u[(t + 1) % 3][r32 * u_dim_size * u_dim_size +
-                           r33 * u_dim_size +
-                           r34] += r35;
-            // ops_printf("u[%d][%d][%d]=%f | m=%f\n", r32, r33, r34, r35, m[r32 * max_index * max_index + r33 * max_index + r34]);
-        }
-
-        ops_dat_release_raw_data(dat_ut[(t + 1) % 3], 0, OPS_WRITE);
-        t++;
-
-        // ops_printf(title, "output/u_ops%03d.txt", t);
-
-        // if (t % 250 == 0)
-            // ops_print_dat_to_txtfile(dat_ut[t % 3], title);
-
-    } while (t < T_intervals);
+        ops_par_loop(source_injection_kernel, "source_injection_kernel", grid, 3, injection_range,
+                     ops_arg_dat(dat_ut[(t + 1) % 3], 1, S3D_000, "float", OPS_WRITE),
+                     ops_arg_dat(dat_m, 1, S3D_000, "float", OPS_READ),
+                     ops_arg_gbl(&src[t], 1, "float", OPS_READ),
+                     ops_arg_idx());
+    }
 
     ops_printf("\n---------------------------\n");
     ops_print_dat_to_txtfile(dat_ut[t % 3], "title.txt");
@@ -425,17 +323,40 @@ void initialize_damp(float *damp, int x_size, int y_size, int z_size)
     }
 }
 
-void initialize_source(float *src, int total_time)
-{
-    float f0 = 0.1; // Peak frequency
+void initialize_source(float* src, int total_time) {
+    float f0 = 0.1;  // Peak frequency
 
-    // ops_printf("Total time: %d\n", total_time);
-    for (int t = 0; t < total_time; t++)
-    {
-        float r = (M_PI * f0 * (dt * t - 1. / f0));
-        src[t] = (1 - 2. * pow(r, 2)) * exp(-pow(r, 2));
-        // ops_printf("src[%d] = %f\n", t, src[t]);
+    double sigma = 1.0 / (M_PI * f0 * sqrt(2.0));
+    double t0 = 6.0 * sigma;
+
+    for (int t = 0; t < total_time; t++) {
+        float r = (M_PI * f0 * (t * dt - t0)) * (M_PI * f0 * (t * dt - t0));
+        src[t] = (1 - 2.0 * r) * exp(-r);
     }
+}
+
+/**
+ * @brief  Calculates the source interpolation.
+ * @note
+ * @param  *src_coords: Source coordinates defined in other system.
+ * @param  *p: [output] source center position.
+ * @param  *ii_src: [output] Interpolation position.
+ * @retval None
+ */
+void calculate_source_interpolation_position(float* src_coords, float* p, int* ii_src) {
+    // source injection interpolation
+    float r1 = (int)(floor(-1.0F * -border_size + 1.0F * src_coords[0]));
+    ii_src[0] = r1;
+    float r2 = (int)(floor(-1.0F * -border_size + 1.0F * src_coords[1]));
+    ii_src[1] = r2;
+    float r3 = (int)(floor(-1.0F * -border_size + 1.0F * src_coords[2]));
+    ii_src[2] = r3;
+    ii_src[3] = r3 + 1;
+    ii_src[4] = r2 + 1;
+    ii_src[5] = r1 + 1;
+    p[0] = (float)(border_size - 1.0F * r1 + src_coords[0]);
+    p[1] = (float)(border_size - 1.0F * r2 + src_coords[1]);
+    p[2] = (float)(border_size - 1.0F * r3 + src_coords[2]);
 }
 
 void print_vector(float *vec, int x_limit, int y_limit, int z_limit)
