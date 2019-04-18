@@ -66,7 +66,7 @@ void initialize_damp_kernel(float *damp, int *idx)
     }
 }
 
-void set_space_order_border_kernel(float *damp, float *damp2, int *idx)
+void set_space_order_border_kernel(float *damp, const float *damp2, int *idx)
 {
     int so_border_left = space_order / 2;
     int so_border_right = space_order / 2 + border_size * 2 + X_size;
@@ -91,7 +91,7 @@ void set_space_order_border_kernel(float *damp, float *damp2, int *idx)
     else
         z = 0;
 
-    damp2[OPS_ACC1(0, 0, 0)] = damp[OPS_ACC0(x, y, z)];
+    damp[OPS_ACC0(0, 0, 0)] = damp2[OPS_ACC1(x, y, z)];
 }
 
 void source_injection_kernel(float *u, const float *m, const float *src_value, const int *idx)

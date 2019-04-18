@@ -5,9 +5,9 @@
 #define OPS_3D
 #include "ops_seq.h"
 int dimensions_number = 3;
-int X_size = 20;
-int Y_size = 20;
-int Z_size = 20;
+int X_size = 488;
+int Y_size = 488;
+int Z_size = 488;
 int padding = 1;
 double dt = 0.001, start = 0, stop = 30; // time variables
 int border_size = 10;                    // Abosrbent border
