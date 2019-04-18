@@ -5,9 +5,9 @@
 #define OPS_3D
 #include "ops_seq.h"
 int dimensions_number = 3;
-int X_size = 488;
-int Y_size = 488;
-int Z_size = 488;
+int X_size = 256;
+int Y_size = 256;
+int Z_size = 256;
 int padding = 1;
 double dt = 0.001, start = 0, stop = 30; // time variables
 int border_size = 10;                    // Abosrbent border
@@ -21,6 +21,7 @@ void initialize_velocity_model(float *m, int x_size, int y_size, int z_size);
 void initialize_damp(float *damp, int x_size, int y_size, int z_size);
 void initialize_source(float *src, int T_intervals);
 void print_vector(float *vec, int x_limit, int y_limit, int z_limit);
+void initialize_source_coordinates(float* src_coords);
 void calculate_source_interpolation_position(float* src_coords, float* p, int* ii_src);
 
 int main(int argc, char *argv[])
@@ -36,6 +37,10 @@ int main(int argc, char *argv[])
     float **u, *m, *damp, *src, src_coords[3];
     int T_intervals;
     char title[25];
+    double ct0, ct1, et0, et1; 
+    X_size -= 24;
+    Y_size -= 24;
+    Z_size -= 24;
 
     // Esse size leva em consideracao a borda absorvente???
     size[0] = X_size + 2 * border_size + 2 * space_order;
@@ -46,7 +51,7 @@ int main(int argc, char *argv[])
     damp_size[2] = Z_size + 2 * border_size + space_order;
 
     T_intervals = ceil((stop - start + dt) / dt);
-    // ops_printf("T_intervals = %d\n", T_intervals);
+    ops_printf("T_intervals = %d\n", T_intervals);
 
     ops_init(argc, NULL, 1);
 
@@ -74,12 +79,9 @@ int main(int argc, char *argv[])
     // As we have only one source, this is simpler. For multiple sources, this has to be changed later.
     calculate_source_interpolation_position(src_coords, p, ii_src);
     // printf("ii_src: %d %d %d %d %d %d\n", ii_src[0], ii_src[1], ii_src[2], ii_src[3], ii_src[4], ii_src[5]);
-    
 
     // Initialize source position
-    src_coords[0] = (float)(X_size - 1) / (float)2;
-    src_coords[1] = (float)(Y_size - 1) / (float)2;
-    src_coords[2] = (float)1.;
+    initialize_source_coordinates(src_coords);
 
     // Declare global constant
     ops_decl_const("X_size", 1, "int", &X_size);
@@ -141,7 +143,6 @@ int main(int argc, char *argv[])
     ops_stencil S3D_1PT = ops_decl_stencil(3, 1, s3d_1pt, "-1,-1,-1");
     ops_stencil S3D_7PTS = ops_decl_stencil(3, 7, s3d_7pts, "7pts");
     ops_stencil S3D_15PTS = ops_decl_stencil(3, 15, s3d_15pts, "15pts");
-    
     int max_index = X_size + 2 * border_size + 2 * space_order;
     int u_dim_size = X_size + 2 * border_size;
 
@@ -174,12 +175,12 @@ int main(int argc, char *argv[])
     // ops_print_dat_to_txtfile(dat_ut[t % 3], "output/u_ops000.txt");
 
     ops_partition("");
+    ops_diagnostic_output();
 
     // Initialize velocity model
     ops_par_loop(initialize_velocity_model_kernel, "initialize_velocity_model_kernel", grid, 3, velocity_model_range,
                     ops_arg_dat(dat_m, 1, S3D_000, "float", OPS_WRITE));
-    ops_print_dat_to_txtfile(dat_m, "model.txt");
-
+    // ops_print_dat_to_txtfile(dat_m, "model.txt");
     //Initialize u1, u2 and u3
     ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
                     ops_arg_dat(dat_ut[0], 1, S3D_000, "float", OPS_WRITE));
@@ -187,7 +188,6 @@ int main(int argc, char *argv[])
                     ops_arg_dat(dat_ut[1], 1, S3D_000, "float", OPS_WRITE));
     ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
                     ops_arg_dat(dat_ut[2], 1, S3D_000, "float", OPS_WRITE));
-
     // Initialize Initialize Damp
     ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
                     ops_arg_dat(dat_damp2, 1, S3D_000, "float", OPS_WRITE));
@@ -203,6 +203,8 @@ int main(int argc, char *argv[])
     // print_vector(damp, X_size + 2 * border_size + 1 + 1, Y_size + 2 * border_size + 1 + 1, Z_size + 2 * border_size + 1 + 1);
 
     ops_printf("\n***********************************************************\n");
+    // Start time
+    ops_timers(&ct0, &et0);
     for(t = 1; t < T_intervals; t++)
     {
         // ops_printf("%d\n", t);
@@ -220,9 +222,12 @@ int main(int argc, char *argv[])
                      ops_arg_gbl(&src[t], 1, "float", OPS_READ),
                      ops_arg_idx());
     }
+    // End time
+    ops_timers(&ct1, &et1);
+    ops_printf("\nTotal Wall time %lf\n", et1 - et0);
 
     ops_printf("\n---------------------------\n");
-    ops_print_dat_to_txtfile(dat_ut[t % 3], "title.txt");
+    // ops_print_dat_to_txtfile(dat_ut[t % 3], "domain/title.txt");
 
     ops_exit();
 
@@ -322,6 +327,21 @@ void initialize_damp(float *damp, int x_size, int y_size, int z_size)
         }
     }
 }
+
+
+/**
+ * Initializes the sources coordinates.
+ * This example only has one source, so the initialization is simple, but in the
+ *future it will handle multiple sources. The current source is intialize in the
+ *middle top of the volume.
+ **/
+void initialize_source_coordinates(float* src_coords) {
+    src_coords[0] = (float)(X_size - 1) / (float)2;
+    src_coords[1] = (float)(Y_size - 1) / (float)2;
+    src_coords[2] = (float)1.;
+}
+
+
 
 void initialize_source(float* src, int total_time) {
     float f0 = 0.1;  // Peak frequency

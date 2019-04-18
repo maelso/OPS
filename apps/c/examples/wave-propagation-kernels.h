@@ -1,6 +1,8 @@
 #ifndef WAVE_PROPAGATION_KERNELS_H
 #define WAVE_PROPAGATION_KERNELS_H
 
+// #define M_PI 3.14159265358979323846
+
 void initialize_velocity_model_kernel(float *m)
 {
     m[OPS_ACC0(0, 0, 0)] = 0.25;
@@ -52,14 +54,14 @@ void initialize_damp_kernel(float *damp, int *idx)
             {
                 pivot = idx[dim];
                 pos = abs((border_size - pivot + 2) / (float)border_size);
-                val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
+                val = dampcoeff * (pos - sin(2 * 3.14159265358979323846 * pos) / (2 * 3.14159265358979323846));
                 damp[OPS_ACC0(0, 0, 0)] += val;
             }
             else if (idx[dim] > damp_right_initial && idx[dim] < damp_right_final)
             {
                 pivot = idx[dim] - damp_right_initial - 1;
                 pos = abs((pivot + 2) / (float)border_size);
-                val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
+                val = dampcoeff * (pos - sin(2 * 3.14159265358979323846 * pos) / (2 * 3.14159265358979323846));
                 damp[OPS_ACC0(0, 0, 0)] += val;
             }
         }
