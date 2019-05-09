@@ -5,9 +5,9 @@
 #define OPS_3D
 #include "ops_seq.h"
 int dimensions_number = 3;
-int X_size = 256;
-int Y_size = 256;
-int Z_size = 256;
+int X_size = 1024;
+int Y_size = 1024;
+int Z_size = 1024;
 int padding = 1;
 double dt = 0.001, start = 0, stop = 30; // time variables
 int border_size = 10;                    // Abosrbent border
@@ -38,9 +38,11 @@ int main(int argc, char *argv[])
     int T_intervals;
     char title[25];
     double ct0, ct1, et0, et1; 
-    X_size -= 24;
-    Y_size -= 24;
-    Z_size -= 24;
+    X_size -= 2*border_size + 2*space_order;
+    Y_size -= 2*border_size + 2*space_order;
+    Z_size -= 2*border_size + 2*space_order;
+
+    ops_printf("Size = %d\n", X_size);
 
     // Esse size leva em consideracao a borda absorvente???
     size[0] = X_size + 2 * border_size + 2 * space_order;
@@ -49,7 +51,6 @@ int main(int argc, char *argv[])
     damp_size[0] = X_size + 2 * border_size + space_order;
     damp_size[1] = Y_size + 2 * border_size + space_order;
     damp_size[2] = Z_size + 2 * border_size + space_order;
-
     T_intervals = ceil((stop - start + dt) / dt);
     ops_printf("T_intervals = %d\n", T_intervals);
 
@@ -75,7 +76,6 @@ int main(int argc, char *argv[])
     // Initialize source
     initialize_source(src, T_intervals);
     // print_vector(src, T_intervals, 0, 0);
-    
     // As we have only one source, this is simpler. For multiple sources, this has to be changed later.
     calculate_source_interpolation_position(src_coords, p, ii_src);
     // printf("ii_src: %d %d %d %d %d %d\n", ii_src[0], ii_src[1], ii_src[2], ii_src[3], ii_src[4], ii_src[5]);
@@ -188,12 +188,14 @@ int main(int argc, char *argv[])
                     ops_arg_dat(dat_ut[1], 1, S3D_000, "float", OPS_WRITE));
     ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
                     ops_arg_dat(dat_ut[2], 1, S3D_000, "float", OPS_WRITE));
+
     // Initialize Initialize Damp
     ops_par_loop(set_zero_kernel, "set_zero_kernel", grid, 3, damp_range,
                     ops_arg_dat(dat_damp2, 1, S3D_000, "float", OPS_WRITE));
     ops_par_loop(initialize_damp_kernel, "initialize_damp_kernel", grid, 3, damp_range,
                     ops_arg_dat(dat_damp2, 1, S3D_000, "float", OPS_WRITE),
                     ops_arg_idx());
+
     ops_par_loop(set_space_order_border_kernel, "set_space_order_border_kernel", grid, 3, damp_range,
                 ops_arg_dat(dat_damp, 1, S3D_000, "float", OPS_WRITE),
                 ops_arg_dat(dat_damp2, 1, S3D_15PTS, "float", OPS_READ),
@@ -231,9 +233,10 @@ int main(int argc, char *argv[])
 
     ops_exit();
 
-    // free(u);
-    // free(m);
-    // free(damp);
+    free(u);
+    free(m);
+    free(damp);
+    free(src);
 
     return 0;
 }
