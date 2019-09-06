@@ -4,14 +4,16 @@
 
 #define OPS_3D
 #include "ops_seq.h"
+
 int dimensions_number = 3;
 int X_size = 1024;
 int Y_size = 1024;
 int Z_size = 1024;
-int padding = 1;
 double dt = 0.001, start = 0, stop = 30; // time variables
 int border_size = 10;                    // Abosrbent border
 int space_order = 2;                     // Space order
+// int padding = 0;
+int padding = space_order/2;
 int ii_src[6], u_dim_size;
 float p[3];
 
@@ -23,6 +25,7 @@ void initialize_source(float *src, int T_intervals);
 void print_vector(float *vec, int x_limit, int y_limit, int z_limit);
 void initialize_source_coordinates(float* src_coords);
 void calculate_source_interpolation_position(float* src_coords, float* p, int* ii_src);
+
 
 int main(int argc, char *argv[])
 {
@@ -42,7 +45,7 @@ int main(int argc, char *argv[])
     Y_size -= 2*border_size + 2*space_order;
     Z_size -= 2*border_size + 2*space_order;
 
-    ops_printf("Size = %d\n", X_size);
+    //ops_printf("Size = %d\n", X_size);
 
     // Esse size leva em consideracao a borda absorvente???
     size[0] = X_size + 2 * border_size + 2 * space_order;
@@ -52,9 +55,9 @@ int main(int argc, char *argv[])
     damp_size[1] = Y_size + 2 * border_size + space_order;
     damp_size[2] = Z_size + 2 * border_size + space_order;
     T_intervals = ceil((stop - start + dt) / dt);
-    ops_printf("T_intervals = %d\n", T_intervals);
+    //ops_printf("T_intervals = %d\n", T_intervals);
 
-    ops_init(argc, NULL, 1);
+    ops_init(argc, NULL, 5);
 
     // Alocates and initialize grid
     u = (float **)malloc(3 * sizeof(float *));
@@ -94,12 +97,10 @@ int main(int argc, char *argv[])
     ops_decl_const("ii_src", 6, "int", ii_src);
     ops_decl_const("p", 3, "float", p);
 
-    ops_printf("Src coordinates:%f %f %f\n", src_coords[0], src_coords[1], src_coords[2]);
+    //ops_printf("Src coordinates:%f %f %f\n", src_coords[0], src_coords[1], src_coords[2]);
 
     // Declare ops_block
     ops_block grid = ops_decl_block(3, "grid");
-
-    ops_block srcB = ops_decl_block(1, "src");
 
     // Declare ops_dat objects
     ops_dat dat_ut[3];
@@ -210,7 +211,7 @@ int main(int argc, char *argv[])
     for(t = 1; t < T_intervals; t++)
     {
         // ops_printf("%d\n", t);
-        ops_par_loop(wave_propagation_kernel, "wave_propagation_kernel", grid, 3, whole_range,
+        ops_par_loop(wave_propagation_2th_kernel, "wave_propagation_2th_kernel", grid, 3, whole_range,
                      ops_arg_dat(dat_damp, 1, S3D_1PT, "float", OPS_READ),
                      ops_arg_dat(dat_m, 1, S3D_000, "float", OPS_READ),
                      ops_arg_dat(dat_ut[(t + 1) % 3], 1, S3D_000, "float", OPS_WRITE), // t1
@@ -226,7 +227,11 @@ int main(int argc, char *argv[])
     }
     // End time
     ops_timers(&ct1, &et1);
+    // timers->section0 += (double)(et1.tv_sec-et0.tv_sec)+(double)(et1.tv_usec-et0.tv_usec)/1000000;
     ops_printf("\nTotal Wall time %lf\n", et1 - et0);
+    // ops_printf("\nnew_Total Wall time %lf\n", timers->section0);
+
+    ops_timing_output(stdout);
 
     ops_printf("\n---------------------------\n");
     // ops_print_dat_to_txtfile(dat_ut[t % 3], "domain/title.txt");

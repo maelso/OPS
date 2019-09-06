@@ -11,23 +11,217 @@ void set_zero_kernel(float *damp)
     damp[OPS_ACC0(0, 0, 0)] = 0.0;
 }
 
-void wave_propagation_kernel(const float *dampx0, const float *mx0, float *ut10, const float *ut00, const float *ut20, int *idx)
+void wave_propagation_2th_kernel(const float *dampx0, const float *mx0, float *ut10, const float *ut00, const float *ut20, int *idx)
 {
     // ut10[OPS_ACC2(0, 0, 0)] = 1.0;
-    float r0 = 1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] + 0.5 * (dt * dt) * dampx0[OPS_ACC0(-1, -1, -1)];
-
+    float r0 = 1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] + 0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)];
+    float dt3r0 = dt * dt * dt / r0;
     ut10[OPS_ACC2(0, 0, 0)] = 2.0 * dt * mx0[OPS_ACC1(0, 0, 0)] * ut00[OPS_ACC3(0, 0, 0)] / r0 +
                               1.0 * (-dt * mx0[OPS_ACC1(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 +
-                                     (dt * dt * dt) * ut00[OPS_ACC3(0, 0, -1)] / r0 +
-                                     (dt * dt * dt) * ut00[OPS_ACC3(0, -1, 0)] / r0 +
-                                     (dt * dt * dt) * ut00[OPS_ACC3(-1, 0, 0)] / r0 +
-                                     (dt * dt * dt) * ut00[OPS_ACC3(1, 0, 0)] / r0 +
-                                     (dt * dt * dt) * ut00[OPS_ACC3(0, 1, 0)] / r0 +
-                                     (dt * dt * dt) * ut00[OPS_ACC3(0, 0, 1)] / r0) +
-                              0.5 * (dt * dt) * dampx0[OPS_ACC0(-1, -1, -1)] * ut20[OPS_ACC4(0, 0, 0)] / r0 -
-                              6.0 * dt * dt * dt * ut00[OPS_ACC3(0, 0, 0)] / r0;
+                                     dt3r0 *
+                                         (ut00[OPS_ACC3(0, 0, -1)] +
+                                          ut00[OPS_ACC3(0, -1, 0)] +
+                                          ut00[OPS_ACC3(-1, 0, 0)] +
+                                          ut00[OPS_ACC3(1, 0, 0)] +
+                                          ut00[OPS_ACC3(0, 1, 0)] +
+                                          ut00[OPS_ACC3(0, 0, 1)])) +
+                              0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 -
+                              6.0 * dt3r0 * ut00[OPS_ACC3(0, 0, 0)];
 }
 
+void wave_propagation_4th_kernel(const float *dampx0, const float *mx0, float *ut10, const float *ut00, const float *ut20, int *idx)
+{
+    float r0 = 1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] + 0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)];
+    float dt3r0 = dt * dt * dt / r0;
+    ut10[OPS_ACC2(0, 0, 0)] = 2.0 * dt * mx0[OPS_ACC1(0, 0, 0)] * ut00[OPS_ACC3(0, 0, 0)] / r0 -
+                              1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 +
+                              1.33333333 * dt3r0 *
+                                  (ut00[OPS_ACC3(-1, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -1, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -1)] +
+                                   ut00[OPS_ACC3(0, 0, 1)] +
+                                   ut00[OPS_ACC3(0, 1, 0)] +
+                                   ut00[OPS_ACC3(1, 0, 0)]) -
+                              0.0833333333 * dt3r0 *
+                                  (ut00[OPS_ACC3(-2, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -2, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -2)] +
+                                   ut00[OPS_ACC3(0, 0, 2)] +
+                                   ut00[OPS_ACC3(0, 2, 0)] +
+                                   ut00[OPS_ACC3(2, 0, 0)]) +
+                              0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 -
+                              7.5 * dt3r0 * ut00[OPS_ACC3(0, 0, 0)];
+}
+
+void wave_propagation_8th_kernel(const float *dampx0, const float *mx0, float *ut10, const float *ut00, const float *ut20, int *idx)
+{
+    float r0 = 1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] + 0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)];
+    float dt3r0 = dt * dt * dt / r0;
+    ut10[OPS_ACC2(0, 0, 0)] = 2.0 * dt * mx0[OPS_ACC1(0, 0, 0)] * ut00[OPS_ACC3(0, 0, 0)] / r0 -
+                              1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 +
+                              1.6 * dt3r0 *
+                                  (ut00[OPS_ACC3(-1, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -1, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -1)] +
+                                   ut00[OPS_ACC3(0, 0, 1)] +
+                                   ut00[OPS_ACC3(0, 1, 0)] +
+                                   ut00[OPS_ACC3(1, 0, 0)]) -
+                              0.2 * dt3r0 *
+                                  (ut00[OPS_ACC3(-2, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -2, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -2)] +
+                                   ut00[OPS_ACC3(0, 0, 2)] +
+                                   ut00[OPS_ACC3(0, 2, 0)] +
+                                   ut00[OPS_ACC3(2, 0, 0)]) +
+                              0.025 * dt3r0 *
+                                  (ut00[OPS_ACC3(-3, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -3, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -3)] +
+                                   ut00[OPS_ACC3(0, 0, 3)] +
+                                   ut00[OPS_ACC3(0, 3, 0)] +
+                                   ut00[OPS_ACC3(3, 0, 0)]) -
+                              0.0017 * dt3r0 *
+                                  (ut00[OPS_ACC3(-4, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -4, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -4)] +
+                                   ut00[OPS_ACC3(0, 0, 4)] +
+                                   ut00[OPS_ACC3(0, 4, 0)] +
+                                   ut00[OPS_ACC3(4, 0, 0)]) +
+                              0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 -
+                              8.5 * dt3r0 * ut00[OPS_ACC3(0, 0, 0)];
+}
+
+void wave_propagation_16th_kernel(const float *dampx0, const float *mx0, float *ut10, const float *ut00, const float *ut20, int *idx)
+{
+    float r0 = 1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] + 0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)];
+    float dt3r0 = dt * dt * dt / r0;
+    ut10[OPS_ACC2(0, 0, 0)] = 1.777 * dt3r0 *
+                                  (ut00[OPS_ACC3(-1, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -1, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -1)] +
+                                   ut00[OPS_ACC3(0, 0, 1)] +
+                                   ut00[OPS_ACC3(0, 1, 0)] +
+                                   ut00[OPS_ACC3(1, 0, 0)]) -
+                              0.3111 * dt3r0 *
+                                  (ut00[OPS_ACC3(-2, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -2, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -2)] +
+                                   ut00[OPS_ACC3(0, 0, 2)] +
+                                   ut00[OPS_ACC3(0, 2, 0)] +
+                                   ut00[OPS_ACC3(2, 0, 0)]) +
+                              0.0754 * dt3r0 *
+                                  (ut00[OPS_ACC3(-3, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -3, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -3)] +
+                                   ut00[OPS_ACC3(0, 0, 3)] +
+                                   ut00[OPS_ACC3(0, 3, 0)] +
+                                   ut00[OPS_ACC3(3, 0, 0)]) -
+                              0.017676 * dt3r0 *
+                                  (ut00[OPS_ACC3(-4, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -4, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -4)] +
+                                   ut00[OPS_ACC3(0, 0, 4)] +
+                                   ut00[OPS_ACC3(0, 4, 0)] +
+                                   ut00[OPS_ACC3(4, 0, 0)]) +
+                              0.00348 * dt3r0 *
+                                  (ut00[OPS_ACC3(-5, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -5, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -5)] +
+                                   ut00[OPS_ACC3(0, 0, 5)] +
+                                   ut00[OPS_ACC3(0, 5, 0)] +
+                                   ut00[OPS_ACC3(5, 0, 0)]) -
+                              5.18000518e-4F * dt3r0 *
+                                  (ut00[OPS_ACC3(-6, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -6, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -6)] +
+                                   ut00[OPS_ACC3(0, 0, 6)] +
+                                   ut00[OPS_ACC3(0, 6, 0)] +
+                                   ut00[OPS_ACC3(6, 0, 0)]) +
+                              5.07429079e-5F * dt3r0 *
+                                  (ut00[OPS_ACC3(-7, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -7, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -7)] +
+                                   ut00[OPS_ACC3(0, 0, 7)] +
+                                   ut00[OPS_ACC3(0, 7, 0)] +
+                                   ut00[OPS_ACC3(7, 0, 0)]) -
+                              2.42812743e-6F * dt3r0 *
+                                  (ut00[OPS_ACC3(-8, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -8, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -8)] +
+                                   ut00[OPS_ACC3(0, 0, 8)] +
+                                   ut00[OPS_ACC3(0, 8, 0)] +
+                                   ut00[OPS_ACC3(8, 0, 0)]) +
+                              2.0 * dt * mx0[OPS_ACC1(0, 0, 0)] * ut00[OPS_ACC3(0, 0, 0)] / r0 -
+                              1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 +
+                              0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 -
+                              9.164 * dt3r0 * ut00[OPS_ACC3(0, 0, 0)];
+}
+
+void wave_propagation_32th_kernel(const float *dampx0, const float *mx0, float *ut10, const float *ut00, const float *ut20, int *idx)
+{
+    float r0 = 1.0 * dt * mx0[OPS_ACC1(0, 0, 0)] + 0.5 * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)];
+    float dt3r0 = dt * dt * dt / r0;
+    ut10[OPS_ACC2(0, 0, 0)] = 1.77777778F * dt3r0 *
+                                  (ut00[OPS_ACC3(-1, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -1, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -1)] +
+                                   ut00[OPS_ACC3(0, 0, 1)] +
+                                   ut00[OPS_ACC3(0, 1, 0)] +
+                                   ut00[OPS_ACC3(1, 0, 0)]) -
+                              3.11111111e-1F * dt3r0 *
+                                  (ut00[OPS_ACC3(-2, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -2, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -2)] +
+                                   ut00[OPS_ACC3(0, 0, 2)] +
+                                   ut00[OPS_ACC3(0, 2, 0)] +
+                                   ut00[OPS_ACC3(2, 0, 0)]) +
+                              7.54208754e-2F * dt3r0 *
+                                  (ut00[OPS_ACC3(-3, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -3, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -3)] +
+                                   ut00[OPS_ACC3(0, 0, 3)] +
+                                   ut00[OPS_ACC3(0, 3, 0)] +
+                                   ut00[OPS_ACC3(3, 0, 0)]) -
+                              1.76767677e-2F * dt3r0 *
+                                  (ut00[OPS_ACC3(-4, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -4, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -4)] +
+                                   ut00[OPS_ACC3(0, 0, 4)] +
+                                   ut00[OPS_ACC3(0, 4, 0)] +
+                                   ut00[OPS_ACC3(4, 0, 0)]) +
+                              3.48096348e-3F * dt3r0 *
+                                  (ut00[OPS_ACC3(-5, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -5, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -5)] +
+                                   ut00[OPS_ACC3(0, 0, 5)] +
+                                   ut00[OPS_ACC3(0, 5, 0)] +
+                                   ut00[OPS_ACC3(5, 0, 0)]) -
+                              5.18000518e-4F * dt3r0 *
+                                  (ut00[OPS_ACC3(-6, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -6, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -6)] +
+                                   ut00[OPS_ACC3(0, 0, 6)] +
+                                   ut00[OPS_ACC3(0, 6, 0)] +
+                                   ut00[OPS_ACC3(6, 0, 0)]) +
+                              5.07429079e-5F * dt3r0 *
+                                  (ut00[OPS_ACC3(-7, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -7, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -7)] +
+                                   ut00[OPS_ACC3(0, 0, 7)] +
+                                   ut00[OPS_ACC3(0, 7, 0)] +
+                                   ut00[OPS_ACC3(7, 0, 0)]) -
+                              2.42812743e-6F * dt3r0 *
+                                  (ut00[OPS_ACC3(-8, 0, 0)] +
+                                   ut00[OPS_ACC3(0, -8, 0)] +
+                                   ut00[OPS_ACC3(0, 0, -8)] +
+                                   ut00[OPS_ACC3(0, 0, 8)] +
+                                   ut00[OPS_ACC3(0, 8, 0)] +
+                                   ut00[OPS_ACC3(8, 0, 0)]) +
+                              2.0F * dt * mx0[OPS_ACC1(0, 0, 0)] * ut00[OPS_ACC3(0, 0, 0)] / r0 -
+                              1.0F * dt * mx0[OPS_ACC1(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 +
+                              5.0e-1F * (dt * dt) * dampx0[OPS_ACC0(0, 0, 0)] * ut20[OPS_ACC4(0, 0, 0)] / r0 -
+                              9.16453231F * dt3r0 * ut00[OPS_ACC3(0, 0, 0)];
+}
 void initialize_damp_kernel(float *damp, int *idx)
 {
     float dampcoeff;
@@ -52,14 +246,14 @@ void initialize_damp_kernel(float *damp, int *idx)
             {
                 pivot = idx[dim];
                 pos = abs((border_size - pivot + 2) / (float)border_size);
-                val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
+                val = dampcoeff * (pos - sin(2 * 3.14159265358979323846 * pos) / (2 * 3.14159265358979323846));
                 damp[OPS_ACC0(0, 0, 0)] += val;
             }
             else if (idx[dim] > damp_right_initial && idx[dim] < damp_right_final)
             {
                 pivot = idx[dim] - damp_right_initial - 1;
                 pos = abs((pivot + 2) / (float)border_size);
-                val = dampcoeff * (pos - sin(2 * M_PI * pos) / (2 * M_PI));
+                val = dampcoeff * (pos - sin(2 * 3.14159265358979323846 * pos) / (2 * 3.14159265358979323846));
                 damp[OPS_ACC0(0, 0, 0)] += val;
             }
         }
