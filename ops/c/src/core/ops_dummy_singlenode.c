@@ -421,7 +421,7 @@ void ops_dat_fetch_data(ops_dat dat, int part, char *data) {
   for (int k = 0; k < lsize[2]; k++)
     for (int j = 0; j < lsize[1]; j++)
       memcpy(&data[k*lsize[0]*lsize[1]+j*lsize[0]],
-             &dat->data[((j-dat->d_m[1] + (k-dat->d_m[2])*dat->size[1])*dat->size[0] - dat->d_m[0])* dat->elem_size],
+             &dat->data[((j + (k)*dat->size[1])*dat->size[0] )* dat->elem_size],
              lsize[0]);
 }
 void ops_dat_set_data(ops_dat dat, int part, char *data) {
@@ -438,7 +438,7 @@ void ops_dat_set_data(ops_dat dat, int part, char *data) {
 
   for (int k = 0; k < lsize[2]; k++)
     for (int j = 0; j < lsize[1]; j++)
-      memcpy(&dat->data[((j-dat->d_m[1] + (k-dat->d_m[2])*dat->size[1])*dat->size[0] - dat->d_m[0])* dat->elem_size],
+      memcpy(&dat->data[((j + (k)*dat->size[1])*dat->size[0])* dat->elem_size],
              &data[k*lsize[0]*lsize[1]+j*lsize[0]],
              lsize[0]);
 
